@@ -3,7 +3,7 @@ name: web-xray
 version: 3.1.0
 description: Produz raios-X e evidências técnicas reproduzíveis de aplicações web autorizadas via CDP, integrando análise paralela multi-perspectiva via Swarmv2, ferramentas FastMCP e blindagem de 5 camadas contra extração acidental de segredos.
 category: devops
-tags: [cdp, web-xray, autopsia, swarmv2, fastmcp, investigacao-tecnica, anti-exfiltracao]
+tags: [cdp, web-xray, browser-recon, swarmv2, fastmcp, investigacao-tecnica, anti-exfiltracao]
 ---
 
 # Web-XRay Técnico SOTA por CDP (v3.1.0)
