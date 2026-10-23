@@ -1,0 +1,41 @@
+{
+  "name": "autopsia",
+  "version": "3.1.0",
+  "description": "Zero-exfiltration technical web app autopsy & CDP sniffer for AI coding agents. Inspects Tech Stack, SPA routes, REST/GraphQL APIs and storage safely.",
+  "type": "module",
+  "bin": {
+    "autopsia": "./scripts/autopsia_engine.mjs"
+  },
+  "scripts": {
+    "start": "node ./scripts/autopsia_engine.mjs",
+    "test": "node --test ./tests/autopsia.test.mjs"
+  },
+  "keywords": [
+    "autopsia",
+    "cdp",
+    "chrome-devtools-protocol",
+    "agent-skills",
+    "skills",
+    "claude",
+    "codex",
+    "gemini",
+    "antigravity",
+    "reverse-engineering",
+    "security-audit",
+    "anti-exfiltration",
+    "vibe-coding"
+  ],
+  "author": "Gabriel Toledo (@Gabrielrtads)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gabrielrtads/autopsia.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Gabrielrtads/autopsia/issues"
+  },
+  "homepage": "https://github.com/Gabrielrtads/autopsia#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
