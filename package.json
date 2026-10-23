@@ -1,17 +1,19 @@
 {
-  "name": "autopsia",
+  "name": "web-xray",
   "version": "3.1.0",
-  "description": "Zero-exfiltration technical web app autopsy & CDP sniffer for AI coding agents. Inspects Tech Stack, SPA routes, REST/GraphQL APIs and storage safely.",
+  "description": "Zero-exfiltration technical web app X-Ray, DOM architecture & correlated API sniffer for AI coding agents.",
   "type": "module",
   "bin": {
-    "autopsia": "./scripts/autopsia_engine.mjs"
+    "web-xray": "./scripts/web_xray_engine.mjs",
+    "autopsia": "./scripts/web_xray_engine.mjs"
   },
   "scripts": {
-    "start": "node ./scripts/autopsia_engine.mjs",
-    "test": "node --test ./tests/autopsia.test.mjs"
+    "start": "node ./scripts/web_xray_engine.mjs",
+    "test": "node --test ./tests/web_xray.test.mjs"
   },
   "keywords": [
-    "autopsia",
+    "web-xray",
+    "xray",
     "cdp",
     "chrome-devtools-protocol",
     "agent-skills",
@@ -23,18 +25,19 @@
     "reverse-engineering",
     "security-audit",
     "anti-exfiltration",
-    "vibe-coding"
+    "vibe-coding",
+    "rea-bridge"
   ],
   "author": "Gabriel Toledo (@Gabrielrtads)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gabrielrtads/autopsia.git"
+    "url": "https://github.com/Gabrielrtads/web-xray.git"
   },
   "bugs": {
-    "url": "https://github.com/Gabrielrtads/autopsia/issues"
+    "url": "https://github.com/Gabrielrtads/web-xray/issues"
   },
-  "homepage": "https://github.com/Gabrielrtads/autopsia#readme",
+  "homepage": "https://github.com/Gabrielrtads/web-xray#readme",
   "engines": {
     "node": ">=18.0.0"
   }

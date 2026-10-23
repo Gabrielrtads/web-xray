@@ -1,11 +1,11 @@
-# 🔬 Autópsia (`autopsia`)
+# ⚡ Web-XRay (`web-xray`)
 
-[![GitHub Stars](https://img.shields.io/github/stars/Gabrielrtads/autopsia?style=social)](https://github.com/Gabrielrtads/autopsia)
+[![GitHub Stars](https://img.shields.io/github/stars/Gabrielrtads/web-xray?style=social)](https://github.com/Gabrielrtads/web-xray)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node: >=18](https://img.shields.io/badge/Node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
-[![Skills CLI](https://img.shields.io/badge/skills.sh-autopsia-purple.svg)](https://skills.sh/)
+[![Skills CLI](https://img.shields.io/badge/skills.sh-web--xray-purple.svg)](https://skills.sh/)
 
-> **Zero-Exfiltration Technical Web App Autopsy & CDP Sniffer for AI Coding Agents.**  
+> **Zero-Exfiltration Technical Web App X-Ray, DOM Architecture & Correlated API Sniffer for AI Coding Agents.**  
 > Non-destructive X-ray of any web application: Tech Stack, SPA routes, form structures, REST/GraphQL APIs and web storage with a strict 5-layer anti-leak shield.
 
 ---
@@ -15,23 +15,23 @@
 Install directly into your AI agent environment (Claude Code, Cursor, Codex, Antigravity, Cline) via the open **Skills CLI**:
 
 ```bash
-npx skills add Gabrielrtads/autopsia
+npx skills add Gabrielrtads/web-xray
 ```
 
 Or install globally:
 
 ```bash
-npx skills add Gabrielrtads/autopsia -g -y
+npx skills add Gabrielrtads/web-xray -g -y
 ```
 
 ---
 
-## 💡 Why Autopsia?
+## 💡 Why Web-XRay?
 
-Most web scrapers (Puppeteer, Cheerio, raw CDP) are **blind hands**: they either extract flat text or leak sensitive authentication tokens, session cookies, and passwords directly into the LLM context.
+Most web scrapers and browser tools (Puppeteer, Cheerio, raw CDP dumps) are **blind and leaky**: they either dump unstructured HTML or accidentally leak sensitive authentication tokens, session cookies, and passwords directly into the LLM context window.
 
-**Autopsia is a clinical forensic microscope:**
-1. **Tech Stack & Frameworks:** Discovers React, Next.js, Vite, Tailwind, Svelte, Vue, Angular, Three.js, TanStack Query, and Redux in runtime.
+**Web-XRay is a clinical, zero-leak forensic scanner designed specifically for AI Agents:**
+1. **Tech Stack & Frameworks:** Discovers React, Next.js, Vite, Tailwind, Svelte, Vue, Angular, Three.js, TanStack Query, and Redux in live runtime.
 2. **SPA Routes & Navigation:** Maps the actual internal application tree from `<nav>`, `<aside>`, and interactive buttons.
 3. **Correlated API Sniffer:** Intercepts REST/GraphQL/tRPC endpoints matched by `requestId` (HTTP method, status code, latency, and sanitized headers).
 4. **Strict Keys-Only Storage Audit:** Audits `localStorage` and `sessionStorage` architecture (key names, byte sizes, inferred types) with **ZERO value extraction**.
@@ -40,9 +40,46 @@ Most web scrapers (Puppeteer, Cheerio, raw CDP) are **blind hands**: they either
 
 ---
 
+## 🔄 The Synergistic Pipeline: `web-xray` + `morluto/rea`
+
+Web-XRay works seamlessly as the **frontline reconnaissance scout** alongside deep forensic workbenches like **[morluto/rea](https://github.com/morluto/rea)** (Reverse Engineer Anything):
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   TARGET APPLICATION                   │
+└──────────────────────────┬─────────────────────────────┘
+                           │
+                           ▼
+ ┌──────────────────────────────────────────────────────┐
+ │  STAGE 1: LIVE RECONNAISSANCE & SANITIZATION         │
+ │  ⚡ Web-XRay (gabrielrtads/web-xray)                  │
+ │                                                      │
+ │  • 5-second non-destructive CDP / Chromium probe     │
+ │  • Strict anti-exfiltration (0 leaked secrets/JWTs)  │
+ │  • Maps live REST/GraphQL APIs & routes              │
+ │  • Identifies loaded script chunks & bundle URLs     │
+ └─────────────────────────┬────────────────────────────┘
+                           │ Bundle URLs & API Maps
+                           ▼
+ ┌──────────────────────────────────────────────────────┐
+ │  STAGE 2: DEEP FORENSICS & AST DEOBFUSCATION         │
+ │  🔬 REA (morluto/rea)                                │
+ │                                                      │
+ │  • JavaScript source recovery from bundles & maps    │
+ │  • AST parsing & module dependency graph             │
+ │  • Runtime reconciliation & deobfuscation            │
+ │  • Decompilation of native binaries / Electron apps  │
+ └──────────────────────────────────────────────────────┘
+```
+
+- **Web-XRay** handles live runtime reconnaissance: it enters in 5 seconds, safely catalogs routes, APIs, storage schemas, and bundle asset URLs without crashing the target, triggering security bans, or leaking sensitive credentials into the LLM context.
+- **REA** handles deep forensic decompilation: armed with the bundle URLs and entrypoints identified by Web-XRay, REA executes `recover_javascript_sources`, unpacks webpack/vite chunks, traces module ASTs, and reconstructs the client application graph.
+
+---
+
 ## 📊 Market Comparison
 
-| Capability | Autopsia (`v3.1`) | `pasky/chrome-cdp` | `browserbase/trace` | Generic Scrapers |
+| Capability | Web-XRay (`v3.1`) | `pasky/chrome-cdp` | `browserbase/trace` | Generic Scrapers |
 |---|:---:|:---:|:---:|:---:|
 | **Tech Stack Discovery** | ✅ **Native** | ❌ None | ❌ None | ⚠️ Static only |
 | **SPA Routes & Forms** | ✅ **Native** | ❌ Raw DOM | ❌ None | ⚠️ Fragile |
@@ -83,10 +120,10 @@ Most web scrapers (Puppeteer, Cheerio, raw CDP) are **blind hands**: they either
 
 ```bash
 # Basic inspection (connects to port 9222 or auto-launches headless Chromium)
-node ./scripts/autopsia_engine.mjs "https://app.example.com"
+node ./scripts/web_xray_engine.mjs "https://app.example.com"
 
 # Inspection with visual viewport screenshot
-node ./scripts/autopsia_engine.mjs "dashboard" --screenshot
+node ./scripts/web_xray_engine.mjs "dashboard" --screenshot
 ```
 
 ### 2. FastMCP Server (Python)
@@ -94,31 +131,29 @@ node ./scripts/autopsia_engine.mjs "dashboard" --screenshot
 Run the native Model Context Protocol server for agent integrations:
 
 ```bash
-fastmcp run scripts/autopsia_fastmcp.py:mcp --transport stdio
+fastmcp run scripts/web_xray_fastmcp.py:mcp --transport stdio
 ```
 
 Call from your agent:
-```python
-from scripts.autopsia_fastmcp import autopsia_run_scan
+- `web_xray_run_scan(target_filter="https://app.example.com")`
+- `web_xray_sanitize_payload(payload_json)`
 
-result = autopsia_run_scan(target_filter="https://app.example.com")
-print(result["techStack"])
-print(result["endpointsCount"])
-```
+### 3. Multi-Agent Triangulation (PowerShell)
 
-### 3. Swarm Multi-Agent Triangulation (PowerShell)
-
-Dispatches the sanitized autopsy report concurrently to 3 AI engines:
+Dispatches parallel analysis across 3 specialized agent roles:
 
 ```powershell
-powershell -NoProfile -File ./scripts/invoke-autopsia-swarm.ps1 -TargetFilter "dashboard" -RunSwarmTriangulation
+powershell -NoProfile -File ./scripts/invoke-web-xray-swarm.ps1 `
+  -TargetFilter "https://app.example.com" `
+  -RunSwarmTriangulation `
+  -DefaultSwarmEngine agy
 ```
 
 ---
 
 ## 🧪 Testing
 
-Run the automated test suite verifying anti-exfiltration guards, storage isolation, and URL/header sanitization:
+Run the included unit test suite verifying strict header sanitization, URL redaction, and keys-only storage constraints:
 
 ```bash
 npm test
@@ -128,4 +163,4 @@ npm test
 
 ## 📄 License
 
-MIT © [Gabriel Toledo (@Gabrielrtads)](https://github.com/Gabrielrtads).
+MIT © [Gabriel Toledo](https://github.com/Gabrielrtads).
