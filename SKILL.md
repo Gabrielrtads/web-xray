@@ -56,7 +56,7 @@ A investigação técnica nunca deve se limitar a um crawling superficial de HTM
 | Camada | Vetor de Risco | Ação Obrigatória do Engine |
 |---|---|---|
 | **1. Headers de Rede** | `Authorization: Bearer <jwt>`, `Cookie`, `Set-Cookie`, `X-Api-Key` | **Strict Allowlist:** Apenas headers seguros de transporte (`content-type`, `accept`, `host`, `user-agent`) são retidos. Qualquer outro header vira `[REDACTED_CUSTOM_HEADER]`. |
-| **2. URLs & Query Strings** | `?token=...`, `?key=...`, `?signature=...`, `#access_token=...` | `redactUrl()` mascara 100% dos parâmetros de query, credenciais de URL (`user:pass`) e fragmentos OAuth de hash. |
+| **2. URLs & Query Strings** | `?token=...`, `?key=...`, `?signature=...`, `#access_token=...` | `redactUrl()` mascara valores (e nomes com segredo) de query, credenciais de URL (`user:pass`), JWT/e-mail/chaves no path, fragmentos OAuth de hash e esquemas opacos (`mailto:`, `tel:`, `data:`). |
 | **3. Web Storage** | Tokens JWT de Supabase/Firebase gravados no `localStorage` | **Modo Keys-Only Estrito:** Extrai apenas chave, tamanho em bytes e tipo de dado. O campo de valor foi **completamente eliminado da coleta**. |
 | **4. Inputs de Formulário** | Campos de senha, CVV, CPF preenchidos | Atributos `type="password"` ou campos com nomes sensíveis têm seus valores bloqueados; apenas presença e rótulo são catalogados. |
 | **5. Diretório de Artefatos** | Salvar evidências na raiz do projeto e commitar via Git | Bloqueio forçado de `process.cwd()`: saídas vão exclusivamente para `ANTIGRAVITY_ARTIFACTS_DIR` ou pasta privada `%TEMP%/antigravity-web-xray-*` (0700/0600). |

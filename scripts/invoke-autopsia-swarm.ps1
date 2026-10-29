@@ -4,6 +4,7 @@ param(
     [string]$Port = '9222',
     [string]$HostAddress = '127.0.0.1',
     [switch]$RunSwarmTriangulation,
+    [switch]$ConfirmoAutorizacao,
     [ValidateSet('agy', 'claude', 'codex')]
     [string]$DefaultSwarmEngine = 'agy'
 )
@@ -23,6 +24,8 @@ if (-not (Test-Path -LiteralPath $engineJs)) {
 # 1. Configurar variáveis de ambiente do runtime
 $env:CHROME_DEBUG_PORT = $Port
 $env:CDP_HOST = $HostAddress
+# Domínios fora da allowlist local (WEB_XRAY_ALLOWLIST) exigem confirmação explícita de autorização
+if ($ConfirmoAutorizacao) { $env:WEB_XRAY_CONFIRMO_AUTORIZACAO = '1' }
 
 # 2. Executar o Motor de Autópsia
 Write-Host "📡 Conectando ao Chrome DevTools Protocol na porta $Port..." -ForegroundColor Yellow

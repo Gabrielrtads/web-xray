@@ -6,7 +6,7 @@
 [![Skills CLI](https://img.shields.io/badge/skills.sh-web--xray-purple.svg)](https://skills.sh/)
 
 > **Zero-Exfiltration Technical Web App X-Ray, DOM Architecture & Correlated API Sniffer for AI Coding Agents.**  
-> Non-destructive X-ray of any web application: Tech Stack, SPA routes, form structures, REST/GraphQL APIs and web storage with a strict 5-layer anti-leak shield.
+> Passive, read-only X-ray of web applications **you own or are explicitly authorized to test**: Tech Stack, SPA routes, form structures, REST/GraphQL APIs and web storage with a strict 5-layer anti-leak shield.
 
 ---
 
@@ -30,13 +30,26 @@ npx skills add Gabrielrtads/web-xray -g -y
 
 Most web scrapers and browser tools (Puppeteer, Cheerio, raw CDP dumps) are **blind and leaky**: they either dump unstructured HTML or accidentally leak sensitive authentication tokens, session cookies, and passwords directly into the LLM context window.
 
-**Web-XRay is a clinical, zero-leak forensic scanner designed specifically for AI Agents:**
+**Web-XRay is a clinical, leak-hardened forensic scanner designed specifically for AI Agents:**
 1. **Tech Stack & Frameworks:** Discovers React, Next.js, Vite, Tailwind, Svelte, Vue, Angular, Three.js, TanStack Query, and Redux in live runtime.
 2. **SPA Routes & Navigation:** Maps the actual internal application tree from `<nav>`, `<aside>`, and interactive buttons.
 3. **Correlated API Sniffer:** Intercepts REST/GraphQL/tRPC endpoints matched by `requestId` (HTTP method, status code, latency, and sanitized headers).
 4. **Strict Keys-Only Storage Audit:** Audits `localStorage` and `sessionStorage` architecture (key names, byte sizes, inferred types) with **ZERO value extraction**.
 5. **Ephemeral Headless Fallback:** Runs against open Chrome tabs (`port 9222`) or spins up an isolated, temporary Chromium instance automatically if none is running.
 6. **Multi-Persona Triangulation:** Dispatches structured reports to 3 specialized LLM personas (Systems Architect, UI/UX Designer, and Security Auditor) with explicit epistemic confidence labels.
+
+---
+
+## ⚖️ Authorized Use Only
+
+Web-XRay must only be pointed at applications **you own or have written permission to test**. The engine enforces this:
+
+- Every scan prints an authorized-use warning.
+- Scanning an `http(s)` host that is **not** `localhost`/loopback and **not** in your local allowlist is **blocked** unless you explicitly confirm authorization with `--confirmo-autorizacao` (or `WEB_XRAY_CONFIRMO_AUTORIZACAO=1`).
+- Your allowlist lives in `WEB_XRAY_ALLOWLIST` (comma-separated) and/or `~/.web-xray/allowlist.txt` (override the path with `WEB_XRAY_ALLOWLIST_FILE`). One host per line; `*.example.com` matches subdomains; `#` starts a comment.
+- The FastMCP tools deliberately do **not** expose the confirmation flag, so an agent cannot self-authorize: only you can, through the allowlist or the environment.
+
+> Redaction is pattern-based (JWTs, API-key formats, e-mails, sensitive key names, URL parts). It lowers the risk of leaking secrets into an LLM context but cannot guarantee it: opaque tokens with no recognizable format (for example a random string inside a URL path) can still appear. Review reports before sharing them. Text copied from the scanned site is treated as **untrusted data** in the generated agent prompts.
 
 ---
 
@@ -55,7 +68,7 @@ Web-XRay works seamlessly as the **frontline reconnaissance scout** alongside de
  │  ⚡ Web-XRay (gabrielrtads/web-xray)                  │
  │                                                      │
  │  • 5-second non-destructive CDP / Chromium probe     │
- │  • Strict anti-exfiltration (0 leaked secrets/JWTs)  │
+ │  • Strict anti-exfiltration (pattern-based redaction) │
  │  • Maps live REST/GraphQL APIs & routes              │
  │  • Identifies loaded script chunks & bundle URLs     │
  └─────────────────────────┬────────────────────────────┘
@@ -72,7 +85,7 @@ Web-XRay works seamlessly as the **frontline reconnaissance scout** alongside de
  └──────────────────────────────────────────────────────┘
 ```
 
-- **Web-XRay** handles live runtime reconnaissance: it enters in 5 seconds, safely catalogs routes, APIs, storage schemas, and bundle asset URLs without crashing the target, triggering security bans, or leaking sensitive credentials into the LLM context.
+- **Web-XRay** handles live runtime reconnaissance: it enters in 5 seconds and catalogs routes, APIs, storage schemas, and bundle asset URLs of applications you are authorized to analyze, with a passive, read-only footprint and without leaking sensitive credentials into the LLM context. It is **not** a stealth tool: it makes no attempt to evade rate limits, WAFs, bot detection, or security monitoring.
 - **REA** handles deep forensic decompilation: armed with the bundle URLs and entrypoints identified by Web-XRay, REA executes `recover_javascript_sources`, unpacks webpack/vite chunks, traces module ASTs, and reconstructs the client application graph.
 
 ---
@@ -100,7 +113,7 @@ Web-XRay works seamlessly as the **frontline reconnaissance scout** alongside de
 [1. Strict Header Allowlist] ──> Only safe transport headers retained; auth/cookies redacted
            │
            ▼
-[2. Structural URL Redaction] ─> Query params, embedded user:pass and OAuth hashes masked
+[2. Structural URL Redaction] ─> Path, query params, embedded user:pass, OAuth hashes and mailto:/tel:/data: masked
            │
            ▼
 [3. Keys-Only Web Storage] ────> Byte sizes & data types recorded; ZERO values stored
@@ -121,6 +134,9 @@ Web-XRay works seamlessly as the **frontline reconnaissance scout** alongside de
 ```bash
 # Basic inspection (connects to port 9222 or auto-launches headless Chromium)
 node ./scripts/web_xray_engine.mjs "https://app.example.com"
+
+# Domain not in your allowlist? Confirm authorization explicitly (only for apps you own / may test)
+node ./scripts/web_xray_engine.mjs "https://app.example.com" --confirmo-autorizacao
 
 # Inspection with visual viewport screenshot
 node ./scripts/web_xray_engine.mjs "dashboard" --screenshot
