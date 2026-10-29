@@ -12,7 +12,6 @@ import json
 import re
 import subprocess
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import httpx
 from fastmcp import FastMCP
 
@@ -27,63 +26,17 @@ if sys.platform == "win32":
 SCRIPT_DIR = Path(__file__).resolve().parent
 ENGINE_JS = SCRIPT_DIR / "web_xray_engine.mjs"
 
-mcp = FastMCP("Web-XRay FastMCP Server")
-
-SENSITIVE_KEY_PATTERN = re.compile(
-    r"(token|secret|password|pwd|credential|api_key|apikey|access_token|refresh_token|id_token|private_key|auth|session|cookie|hash|cvv|cpf|cartao|credit_card)",
-    re.IGNORECASE
+# Redação compartilhada (stdlib pura) entre web_xray_fastmcp.py e autopsia_fastmcp.py
+sys.path.insert(0, str(SCRIPT_DIR))
+from xray_redact import (  # noqa: E402
+    redact_url as _redact_url,
+    scrub_object as _scrub_object,
+    sanitize_page_text,
+    wrap_untrusted,
+    UNTRUSTED_DATA_NOTICE,
 )
 
-FORBIDDEN_HEADERS = {
-    "authorization",
-    "proxy-authorization",
-    "cookie",
-    "set-cookie",
-    "x-api-key",
-    "x-auth-token",
-    "x-access-token",
-    "x-session-id",
-    "x-csrf-token",
-    "x-xsrf-token",
-    "cf-access-jwt-assertion",
-    "cf-access-client-id",
-    "cf-access-client-secret"
-}
-
-def _redact_url(raw_url: str) -> str:
-    """Mascara query params de URLs para evitar vazamento de chaves e assinaturas."""
-    if not raw_url:
-        return ""
-    try:
-        parsed = urlparse(raw_url)
-        if not parsed.query:
-            return raw_url
-        qs = parse_qs(parsed.query, keep_blank_values=True)
-        sanitized_qs = {k: "[REDACTED]" for k in qs}
-        new_query = urlencode(sanitized_qs, doseq=True)
-        return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
-    except Exception:
-        return raw_url
-
-def _scrub_object(obj):
-    """Sanitiza recursivamente dicionários e listas mascarando segredos."""
-    if isinstance(obj, dict):
-        clean = {}
-        for k, v in obj.items():
-            if SENSITIVE_KEY_PATTERN.search(str(k)):
-                clean[k] = "[REDACTED_SECRET]"
-            else:
-                clean[k] = _scrub_object(v)
-        return clean
-    elif isinstance(obj, list):
-        return [_scrub_object(item) for item in obj]
-    elif isinstance(obj, str):
-        # Mascara formatos conhecidos
-        masked = re.sub(r"eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}", "[REDACTED_JWT]", obj)
-        masked = re.sub(r"sk-[a-zA-Z0-9_-]{20,}", "[REDACTED_KEY]", masked)
-        masked = re.sub(r"ghp_[a-zA-Z0-9]{36}", "[REDACTED_TOKEN]", masked)
-        return masked
-    return obj
+mcp = FastMCP("Web-XRay FastMCP Server")
 
 # ==========================================
 # 🛠️ TOOLS DO SERVIDOR FASTMCP
@@ -111,9 +64,9 @@ def autopsia_list_tabs(host: str = "127.0.0.1", port: str = "9222") -> dict:
             for p in pages:
                 clean_pages.append({
                     "id": p.get("id"),
-                    "title": p.get("title", "Sem Título"),
+                    "title": sanitize_page_text(p.get("title", "Sem Título")),
                     "url": _redact_url(p.get("url", "")),
-                    "devtoolsFrontendUrl": p.get("devtoolsFrontendUrl", "")
+                    "devtoolsFrontendUrl": _redact_url(p.get("devtoolsFrontendUrl", ""))
                 })
             
             return {
@@ -142,6 +95,8 @@ def web_xray_run_scan(
     Executa o raio-X técnico completo na aba especificada via Chrome DevTools Protocol ou Chromium efêmero.
     Extrai: Tech Stack, links/inputs, endpoints REST/GraphQL de rede, storage seguro (apenas chaves)
     e screenshot do viewport opcional. Todas as credenciais e dados sensíveis são censurados.
+    Só escaneia domínios da allowlist local do usuário (WEB_XRAY_ALLOWLIST / ~/.web-xray/allowlist.txt) ou
+    localhost; esta ferramenta de propósito não expõe a confirmação de autorização (feita só pelo usuário).
     """
     if not ENGINE_JS.exists():
         return {
@@ -267,6 +222,11 @@ def autopsia_create_swarm_manifest(
     2. Designer UI/UX (Frontend, Componentes, Arsenal de Design)
     3. Auditor de Segurança (Red Team, Superfície de Ataque, DEFCON)
     """
+    # report_path, screenshot_path e target_title chegam do chamador (e, indiretamente, do site escaneado):
+    # entram nos prompts somente como dado não confiável delimitado.
+    report = wrap_untrusted(report_path, 300)
+    screenshot = wrap_untrusted(screenshot_path, 300)
+    title = wrap_untrusted(target_title)
     manifest = [
         {
             "id": "autopsia_architect",
@@ -274,7 +234,7 @@ def autopsia_create_swarm_manifest(
             "mode": "plan",
             "model": "gemini-3.8-flash-high",
             "effort": "high",
-            "prompt": f"Analise o relatório de autópsia técnica ({report_path}) de '{target_title}'. Dissecte os endpoints de API, a arquitetura de backend observada e gere diagramas Mermaid do fluxo de dados e dos contratos de rotas."
+            "prompt": f"{UNTRUSTED_DATA_NOTICE} Analise o relatório de autópsia técnica (caminho: {report}) de {title}. Dissecte os endpoints de API, a arquitetura de backend observada e gere diagramas Mermaid do fluxo de dados e dos contratos de rotas."
         },
         {
             "id": "autopsia_ux_designer",
@@ -282,7 +242,7 @@ def autopsia_create_swarm_manifest(
             "mode": "plan",
             "model": "sonnet",
             "effort": "high",
-            "prompt": f"Analise os elementos de interface ({report_path}) e o screenshot visual ({screenshot_path}) de '{target_title}'. Mapeie os componentes correspondentes no Arsenal de Design (shadcn/ui, Tremor Raw, Origin UI, Aceternity) e avalie a densidade de tela."
+            "prompt": f"{UNTRUSTED_DATA_NOTICE} Analise os elementos de interface (relatório: {report}) e o screenshot visual (caminho: {screenshot}) de {title}. Mapeie os componentes correspondentes no Arsenal de Design (shadcn/ui, Tremor Raw, Origin UI, Aceternity) e avalie a densidade de tela."
         },
         {
             "id": "autopsia_security_auditor",
@@ -290,7 +250,7 @@ def autopsia_create_swarm_manifest(
             "mode": "plan",
             "model": "gpt-6-sol",
             "effort": "high",
-            "prompt": f"Audite a superfície de ataque e a exposição de segurança de '{target_title}' com base em ({report_path}). Classifique o nível DEFCON (1 a 4), aponte possíveis riscos de PII, parâmetros inseguros e rotas sensíveis."
+            "prompt": f"{UNTRUSTED_DATA_NOTICE} Audite a superfície de ataque e a exposição de segurança de {title} com base em (relatório: {report}). Classifique o nível DEFCON (1 a 4), aponte possíveis riscos de PII, parâmetros inseguros e rotas sensíveis."
         }
     ]
     return {
