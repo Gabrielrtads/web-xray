@@ -64,7 +64,10 @@ export const ALLOWED_HEADERS = new Set([
 ]);
 
 // Esquemas sem "://" cujo conteúdo (e-mail, telefone, payload) é o próprio dado sensível
-const OPAQUE_URL_SCHEME_REGEX = /^\s*(mailto|tel|sms|callto|data|javascript|blob):/i;
+const OPAQUE_URL_SCHEME_REGEX = /^(mailto|tel|sms|callto|data|javascript|blob):/i;
+
+// Protocolos com estrutura host/path/query; qualquer outro (mailto:, data:, javascript:...) é redigido por inteiro
+const WEB_PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:', 'ftp:']);
 
 // Nomes de parâmetro OAuth/OIDC públicos e estruturais; só eles podem aparecer em claro como CHAVE de fragmento
 const SAFE_FRAGMENT_KEYS = new Set(['access_token', 'id_token', 'refresh_token', 'token_type', 'expires_in', 'state', 'code']);
@@ -120,7 +123,9 @@ export function redactUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
 
   // mailto:/tel:/data:/javascript:/blob: não têm "://" e o conteúdo é o dado sensível
-  const opaque = rawUrl.match(OPAQUE_URL_SCHEME_REGEX);
+  // O parser de URL ignora tab/CR/LF e espaços/controles iniciais; o teste do esquema precisa enxergar o mesmo
+  const probe = rawUrl.replace(/[\t\n\r]/g, '').replace(/^[\u0000- ]+/, '');
+  const opaque = probe.match(OPAQUE_URL_SCHEME_REGEX);
   if (opaque) return `${opaque[1].toLowerCase()}:[REDACTED]`;
 
   // Tratamento de URLs relativas (ex: "/api/v1/users?id=123")
@@ -128,6 +133,8 @@ export function redactUrl(rawUrl) {
     try {
       const dummyBase = 'http://relative.local';
       const parsed = new URL(rawUrl, dummyBase);
+      // Entrada com esquema próprio disfarçado (ex: "java<TAB>script:") não é caminho relativo
+      if (parsed.protocol !== 'http:') return `${parsed.protocol}[REDACTED]`;
       const search = redactSearchParams(parsed.searchParams);
       return redactPath(parsed.pathname) + (search ? '?' + search : '') + redactHash(parsed.hash);
     } catch {
@@ -137,6 +144,7 @@ export function redactUrl(rawUrl) {
 
   try {
     const parsed = new URL(rawUrl);
+    if (!WEB_PROTOCOLS.has(parsed.protocol)) return `${parsed.protocol}[REDACTED]`;
 
     // 1. Censura credenciais embutidas na URL (http://user:pass@host)
     if (parsed.username || parsed.password) {
@@ -156,7 +164,8 @@ export function redactUrl(rawUrl) {
 
     return parsed.toString();
   } catch {
-    return scrubSensitiveData(rawUrl.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@?#]*@/i, '$1REDACTED@').split(/[?#]/)[0]) + '?query=[REDACTED]';
+    // URL inválida: não há como separar userinfo/path com segurança, então nada dela é preservado
+    return '[UNPARSEABLE_URL_REDACTED]';
   }
 }
 
@@ -231,8 +240,8 @@ export function sanitizePageText(text, maxLength = 200) {
  * Envolve texto da página com delimitadores explícitos antes de interpolá-lo em um prompt de agente.
  */
 export function wrapUntrusted(text, maxLength = 200) {
-  // Impede que o site forje o delimitador de fechamento
-  const safe = sanitizePageText(text, maxLength).replace(/[<>]{2,}/g, ' ');
+  // Impede que o site forje o delimitador de fechamento (inclusive com variantes Unicode de "<" e ">")
+  const safe = sanitizePageText(String(text ?? '').normalize('NFKC').replace(/\p{Cf}/gu, ''), maxLength).replace(/[<>]/g, ' ');
   return `${UNTRUSTED_OPEN} ${safe} ${UNTRUSTED_CLOSE}`;
 }
 
@@ -245,15 +254,31 @@ export function sanitizeStorageKeyName(key) {
     .replace(/\bsb-[a-z0-9]{10,}(-auth-token)/gi, 'sb-[REDACTED_REF]$1');
 }
 
+const STORAGE_VALUE_TYPES = new Set(['string', 'number', 'boolean', 'object', 'array', 'undefined']);
+const KNOWN_STACK_NAMES = new Set(['React', 'Next.js', 'Vue.js', 'Nuxt.js', 'Svelte', 'Angular', 'Vite', 'TanStack Query', 'Redux', 'Tailwind CSS', 'Canvas/Three.js']);
+
+const toCount = (value) => (Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : 0);
+
 export function sanitizeStorageAudit(audit) {
+  // Allowlist de campos: nada além de chave/tamanho/tipo (nunca "value") chega ao relatório
   const clean = (list) => (Array.isArray(list) ? list : []).map(item => ({
-    ...item,
-    key: sanitizeStorageKeyName(item && item.key)
+    key: sanitizeStorageKeyName(item && item.key),
+    sizeBytes: toCount(item && item.sizeBytes),
+    type: STORAGE_VALUE_TYPES.has(item && item.type) ? item.type : 'string',
+    isSensitiveName: Boolean(item && item.isSensitiveName)
   }));
   return {
     localStorage: clean(audit && audit.localStorage),
     sessionStorage: clean(audit && audit.sessionStorage)
   };
+}
+
+export function sanitizeTechStack(stack) {
+  return (Array.isArray(stack) ? stack : []).filter(name => KNOWN_STACK_NAMES.has(name));
+}
+
+export function sanitizeUiStats(stats) {
+  return { totalLinks: toCount(stats && stats.totalLinks), totalInputs: toCount(stats && stats.totalInputs) };
 }
 
 export function sanitizeInputsSample(inputs) {
@@ -798,7 +823,7 @@ export async function runAutopsiaEngine(targetUrlFilter = '', options = {}) {
     const safeLinks = (parsedUI.linksSample || []).map(l => ({
       text: sanitizePageText(l.text, 60),
       href: redactUrl(l.href),
-      tag: l.tag
+      tag: sanitizePageText(l.tag, 30)
     }));
 
     const autopsiaReport = {
@@ -816,16 +841,16 @@ export async function runAutopsiaEngine(targetUrlFilter = '', options = {}) {
         inferredFromDOM: ["techStack", "linksSample", "inputsSample"],
         unverified: ["backendDatabases", "internalQueues", "authenticationRoles"]
       },
-      techStack: parsedUI.detectedStack || [],
+      techStack: sanitizeTechStack(parsedUI.detectedStack),
       domOverview: {
         title: parsedUI.meta ? sanitizePageText(parsedUI.meta.title) : '',
         url: cleanUrl,
         description: parsedUI.meta ? sanitizePageText(parsedUI.meta.description, 300) : '',
         viewport: parsedUI.meta ? sanitizePageText(parsedUI.meta.viewport, 100) : '',
-        totalDomNodes: parsedUI.meta ? parsedUI.meta.totalDomNodes : 0
+        totalDomNodes: parsedUI.meta ? toCount(parsedUI.meta.totalDomNodes) : 0
       },
       uiAnalysis: {
-        stats: parsedUI.stats || {},
+        stats: sanitizeUiStats(parsedUI.stats),
         linksSample: safeLinks,
         inputsSample: sanitizeInputsSample(parsedUI.inputsSample)
       },
@@ -876,6 +901,23 @@ export async function runAutopsiaEngine(targetUrlFilter = '', options = {}) {
 
 export const runWebXRayEngine = runAutopsiaEngine;
 
+/**
+ * Interpreta a linha de comando. Flags só valem ANTES de "--"; depois dele tudo é filtro posicional.
+ * Assim um chamador (ex: FastMCP) que controla o filtro não consegue injetar --confirmo-autorizacao.
+ */
+export function parseCliArgs(args) {
+  const dashIndex = args.indexOf('--');
+  const flags = dashIndex === -1 ? args : args.slice(0, dashIndex);
+  const positional = dashIndex === -1 ? args.filter(a => !a.startsWith('--')) : args.slice(dashIndex + 1);
+  return {
+    urlFilter: positional[0] || '',
+    enableScreenshot: flags.includes('--screenshot'),
+    enableStorage: !flags.includes('--no-storage'),
+    enableConsole: !flags.includes('--no-console'),
+    confirmAuthorization: flags.includes('--confirmo-autorizacao')
+  };
+}
+
 // ==========================================
 // 🚀 CLI DIRECT EXECUTION
 // ==========================================
@@ -887,12 +929,7 @@ if (process.argv[1] && (
   process.argv[1].endsWith('web-xray') ||
   process.argv[1].endsWith('autopsia')
 )) {
-  const args = process.argv.slice(2);
-  const urlFilter = args.find(a => !a.startsWith('--')) || '';
-  const enableScreenshot = args.includes('--screenshot');
-  const enableStorage = !args.includes('--no-storage');
-  const enableConsole = !args.includes('--no-console');
-  const confirmAuthorization = args.includes('--confirmo-autorizacao');
+  const { urlFilter, enableScreenshot, enableStorage, enableConsole, confirmAuthorization } = parseCliArgs(process.argv.slice(2));
 
   runWebXRayEngine(urlFilter, {
     enableScreenshot,

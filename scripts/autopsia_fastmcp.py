@@ -108,13 +108,16 @@ def autopsia_run_scan(
     env["CDP_HOST"] = host
     env["CHROME_DEBUG_PORT"] = port
 
-    cmd = ["node", str(ENGINE_JS), target_filter]
+    # Flags ANTES de "--"; o filtro (controlado pelo chamador) depois dele, para que nunca seja lido como flag
+    # (ex: --confirmo-autorizacao). A confirmação de autorização só vale vinda do usuário (env/allowlist).
+    cmd = ["node", str(ENGINE_JS)]
     if not enable_storage:
         cmd.append("--no-storage")
     if not enable_console:
         cmd.append("--no-console")
     if enable_screenshot:
         cmd.append("--screenshot")
+    cmd += ["--", target_filter]
 
     try:
         proc = subprocess.run(
