@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node ./scripts/web_xray_engine.mjs",
-    "test": "node --test ./tests/web_xray.test.mjs"
+    "test": "node --test ./tests/web_xray.test.mjs ./tests/autopsia.test.mjs ./tests/seguranca.test.mjs ./tests/seguranca_hardening.test.mjs",
+    "test:py": "python -m unittest discover -s tests -p \"test_*.py\"",
+    "test:all": "npm test && npm run test:py"
   },
   "keywords": [
     "web-xray",
